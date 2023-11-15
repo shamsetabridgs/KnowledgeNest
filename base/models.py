@@ -9,8 +9,8 @@ class User(AbstractUser):
 
     avatar = models.ImageField(null=True, default="avatar.svg")
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    #USERNAME_FIELD = 'email'
+    #REQUIRED_FIELDS = []
 
 
 class Topic(models.Model):
@@ -49,3 +49,15 @@ class Message(models.Model):
 
     def __str__(self):
         return self.body[0:50]
+
+
+from django.contrib.auth import get_user_model
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']

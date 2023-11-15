@@ -3,7 +3,7 @@
     <div class="container">
         <a href="{% url 'home' %}" class="header__logo">
             <img src="{% static 'images/logo.svg' %}" />
-            <h1>StudyBuddy</h1>
+            <h1>KnowledgeNest</h1>
         </a>
         <form class="header__search" method="GET" action="{% url 'home' %}">
             <label>
@@ -16,6 +16,20 @@
                 <input name="q" placeholder="Search for posts" />
             </label>
         </form>
+
+            <!-- Notifications -->
+        <a href="{% url 'show_notifications' %}">
+        {% if request.user.is_authenticated %}
+
+            
+                {% if unread_count > 0 %}
+                ({{ unread_count }})Notifications 
+                {% else %}
+                ({{unread_count}})Notification
+                {% endif %}
+            
+        {% endif %}
+        </a>
         <nav class="header__menu">
 
 

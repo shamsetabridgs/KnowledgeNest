@@ -5,6 +5,7 @@ urlpatterns = [
     path('login/', views.loginPage, name="login"),
     path('logout/', views.logoutUser, name="logout"),
     path('register/', views.registerPage, name="register"),
+    path('activate/<uidb64>/<token>/',views.activate,name="activate"),
 
     path('', views.home, name="home"),
     path('room/<str:pk>/', views.room, name="room"),
@@ -19,4 +20,7 @@ urlpatterns = [
 
     path('topics/', views.topicsPage, name="topics"),
     path('activity/', views.activityPage, name="activity"),
+
+    path('notifications/', views.show_notifications, name='show_notifications'),
+    path('mark_notifications_as_read/', views.mark_notifications_as_read, name='mark_notifications_as_read'),
 ]

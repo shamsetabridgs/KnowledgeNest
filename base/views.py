@@ -3,9 +3,12 @@ from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate,login,logout,update_session_auth_hash,get_user_model
 from .models import Room, Topic, Message, User
 from .forms import RoomForm, UserForm, MyUserCreationForm
+
+
+from django.contrib.auth.forms import AuthenticationForm
 
 # Create your views here.
 
@@ -15,7 +18,58 @@ from .forms import RoomForm, UserForm, MyUserCreationForm
 #     {'id': 3, 'name': 'Frontend developers'},
 # ]
 
+from django.contrib import messages
 
+def loginPage(request):
+    page = 'login'
+    if request.method=="POST":
+        form=AuthenticationForm(request=request, data=request.POST)
+        if form.is_valid():
+            username=form.cleaned_data.get('username')
+            password=form.cleaned_data.get('password')
+            user=authenticate(username=username,password=password)
+            if user is not None:
+                login(request,user)
+                return redirect('home')
+            
+            else:
+                messages.error(request, 'Invalid Username or Password')
+
+        else:
+            messages.error(request, 'Invalid Username or Password')
+
+    else:
+        form=AuthenticationForm()
+    context={
+        'form':form,
+        'page':page
+    }
+    return render(request, 'base/login_register.html',context)
+'''
+def loginPage(request):
+    page = 'login'
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        try:
+            user = User.objects.get(username=username)
+        except:
+            messages.error(request, 'User does not exixt')
+        
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+            return redirect('home')
+        else:
+            messages.error(request, 'Username or Password does not exist.')
+    
+    context = {'page':page}
+    return render(request, 'base/login_register.html', context)'''
+
+
+'''
 def loginPage(request):
     page = 'login'
     if request.user.is_authenticated:
@@ -39,7 +93,7 @@ def loginPage(request):
             messages.error(request, 'Username OR password does not exit')
 
     context = {'page': page}
-    return render(request, 'base/login_register.html', context)
+    return render(request, 'base/login_register.html', context)'''
 
 
 def logoutUser(request):
@@ -47,6 +101,41 @@ def logoutUser(request):
     return redirect('home')
 
 
+from django.contrib.sites.shortcuts import get_current_site
+from django.core.mail import EmailMessage
+from django.template.loader import render_to_string
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode,urlsafe_base64_decode
+UserModel=get_user_model()
+
+from .forms import MyUserCreationForm
+def registerPage(request):
+    if request.method=="POST":
+        form=MyUserCreationForm(request.POST)
+        if form.is_valid():
+            user=form.save(commit=False)
+            user.is_active=False
+            user.save()
+            current_site=get_current_site(request)
+            mail_subject='Active Your Account'
+            message=render_to_string('base/account.html',{
+                'user':user,
+                'domain':current_site.domain,
+                'uid':urlsafe_base64_encode(force_bytes(user.pk)),
+                'token':default_token_generator.make_token(user),
+            })
+            send_mail=form.cleaned_data.get('email')
+            email=EmailMessage(mail_subject,message, to=[send_mail])
+            email.send()
+            messages.success(request,'Successfully created account')
+            messages.info(request,'Activate your account from the mail you are provided')
+            return redirect('login')
+    else:
+        form=MyUserCreationForm()
+    return render(request, 'base/login_register.html',{'form':form})
+
+'''
 def registerPage(request):
     form = MyUserCreationForm()
 
@@ -61,7 +150,23 @@ def registerPage(request):
         else:
             messages.error(request, 'An error occurred during registration')
 
-    return render(request, 'base/login_register.html', {'form': form})
+    return render(request, 'base/login_register.html', {'form': form})'''
+
+
+def activate(request, uidb64, token):
+    try:
+        uid=urlsafe_base64_decode(uidb64).decode()
+        user=UserModel._default_manager.get(pk=uid)
+    except(TypeError,ValueError,OverflowError,User.DoesNotExist):
+        user=None
+    if user is not None and default_token_generator.check_token(user, token):
+        user.is_active=True
+        user.save()
+        messages.success(request, "Your account is activated now, you can log in now")
+        return redirect('login')
+    else:
+        messages.warning(request,"Activation link is invalid")
+        return redirect('register')
 
 
 def home(request):
@@ -202,3 +307,19 @@ def topicsPage(request):
 def activityPage(request):
     room_messages = Message.objects.all()
     return render(request, 'base/activity.html', {'room_messages': room_messages})
+
+
+from .models import Notification
+
+def show_notifications(request):
+    user_notifications = Notification.objects.filter(recipient=request.user, is_read=False)
+    return render(request, 'base/notifications.html', {'notifications': user_notifications, 'unread_count': user_notifications.count()})
+
+
+
+def mark_notifications_as_read(request):
+    user_notifications = Notification.objects.filter(recipient=request.user, is_read=False)
+    for notification in user_notifications:
+        notification.is_read = True
+        notification.save()
+    return redirect('home')
